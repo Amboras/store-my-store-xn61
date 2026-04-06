@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCheckout, CheckoutStep, ShippingAddress } from '@/hooks/use-checkout'
+import { useCheckoutSettings } from '@/hooks/use-checkout-settings'
 import { ShoppingBag, ChevronRight, Loader2, Check, ArrowLeft, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { StripePaymentForm } from '@/components/checkout/stripe-payment-form'
@@ -27,10 +28,12 @@ export default function CheckoutPage() {
     isUpdating, error, clearError, paymentSession, stripeConfig,
   } = useCheckout()
 
+  const { data: checkoutSettings } = useCheckoutSettings()
+
   const [email, setEmail] = useState('')
   const [address, setAddress] = useState<ShippingAddress>({
-    first_name: '', last_name: '', address_1: '',
-    city: '', postal_code: '', country_code: 'us', phone: '',
+    first_name: '', last_name: '', address_1: '', address_2: '',
+    company: '', city: '', postal_code: '', country_code: 'us', phone: '',
   })
   const [selectedShipping, setSelectedShipping] = useState('')
 
@@ -151,12 +154,90 @@ export default function CheckoutPage() {
                 <section>
                   <h2 className="text-xs uppercase tracking-widest font-semibold mb-4">Shipping Address</h2>
                   <div className="grid grid-cols-2 gap-4">
-                    <input type="text" value={address.first_name} onChange={(e) => updateAddress('first_name', e.target.value)} required placeholder="First name" className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors" />
-                    <input type="text" value={address.last_name} onChange={(e) => updateAddress('last_name', e.target.value)} required placeholder="Last name" className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors" />
-                    <input type="text" value={address.address_1} onChange={(e) => updateAddress('address_1', e.target.value)} required placeholder="Address" className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors" />
-                    <input type="text" value={address.city} onChange={(e) => updateAddress('city', e.target.value)} required placeholder="City" className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors" />
-                    <input type="text" value={address.postal_code} onChange={(e) => updateAddress('postal_code', e.target.value)} required placeholder="Postal code" className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors" />
-                    <input type="text" value={address.phone} onChange={(e) => updateAddress('phone', e.target.value)} placeholder="Phone (optional)" className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors" />
+                    {/* First Name - conditionally required */}
+                    {checkoutSettings?.full_name === 'full' && (
+                      <input
+                        type="text"
+                        value={address.first_name}
+                        onChange={(e) => updateAddress('first_name', e.target.value)}
+                        required
+                        placeholder="First name"
+                        className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                      />
+                    )}
+
+                    {/* Last Name - always required */}
+                    <input
+                      type="text"
+                      value={address.last_name}
+                      onChange={(e) => updateAddress('last_name', e.target.value)}
+                      required
+                      placeholder={checkoutSettings?.full_name === 'last_only' ? 'Last name' : 'Last name'}
+                      className={`border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors ${checkoutSettings?.full_name === 'last_only' ? 'col-span-2' : ''}`}
+                    />
+
+                    {/* Company Name - conditional visibility */}
+                    {checkoutSettings?.company_name === 'optional' && (
+                      <input
+                        type="text"
+                        value={address.company}
+                        onChange={(e) => updateAddress('company', e.target.value)}
+                        placeholder="Company (optional)"
+                        className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                      />
+                    )}
+
+                    {/* Address Line 1 - always required */}
+                    <input
+                      type="text"
+                      value={address.address_1}
+                      onChange={(e) => updateAddress('address_1', e.target.value)}
+                      required
+                      placeholder="Address"
+                      className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                    />
+
+                    {/* Address Line 2 - conditional visibility and requirement */}
+                    {checkoutSettings?.address_line_2 !== 'hidden' && (
+                      <input
+                        type="text"
+                        value={address.address_2}
+                        onChange={(e) => updateAddress('address_2', e.target.value)}
+                        required={checkoutSettings?.address_line_2 === 'required'}
+                        placeholder={checkoutSettings?.address_line_2 === 'required' ? 'Apartment, suite, etc.' : 'Apartment, suite, etc. (optional)'}
+                        className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                      />
+                    )}
+
+                    {/* City - always required */}
+                    <input
+                      type="text"
+                      value={address.city}
+                      onChange={(e) => updateAddress('city', e.target.value)}
+                      required
+                      placeholder="City"
+                      className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                    />
+
+                    {/* Postal Code - always required */}
+                    <input
+                      type="text"
+                      value={address.postal_code}
+                      onChange={(e) => updateAddress('postal_code', e.target.value)}
+                      required
+                      placeholder="Postal code"
+                      className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                    />
+
+                    {/* Phone - conditional requirement */}
+                    <input
+                      type="text"
+                      value={address.phone}
+                      onChange={(e) => updateAddress('phone', e.target.value)}
+                      required={checkoutSettings?.phone === 'required'}
+                      placeholder={checkoutSettings?.phone === 'required' ? 'Phone' : 'Phone (optional)'}
+                      className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
+                    />
                   </div>
                 </section>
 
